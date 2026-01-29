@@ -76,6 +76,8 @@ setuptools.setup(
         'reactivex',
         'tenacity',
         'termcolor',
+        'sentence-transformers',
+        'ipywidgets'
     ),
     extras_require={
         'dev': [
