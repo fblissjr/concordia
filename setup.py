@@ -78,10 +78,6 @@ setuptools.setup(
         'termcolor',
     ),
     extras_require={
-        'amazon': [
-            # Used in contrib.language_models.amazon
-            'boto3',
-        ],
         'dev': [
             # Used in development
             'build',
@@ -105,18 +101,6 @@ setuptools.setup(
             'torch',
             'transformers',
         ],
-        'langchain': [
-            # Used in concordia.contrib.language_models.langchain
-            'langchain-community',
-        ],
-        'mistralai': [
-            # Used in concordia.contrib.language_models.mistralai
-            'mistralai',
-        ],
-        'ollama': [
-            # Used in concordia.contrib.language_models.ollama
-            'ollama',
-        ],
         'openai': [
             # Used in concordia.contrib.language_models.openai
             'openai>=1.3.0',
@@ -128,10 +112,6 @@ setuptools.setup(
         'vllm': [
             # Used in concordia.contrib.language_models.vllm
             'vllm',
-        ],
-        'groq': [
-            # Used in concordia.contrib.language_models.groq
-            'groq',
         ],
     },
 )
