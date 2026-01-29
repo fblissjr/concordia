@@ -1,5 +1,6 @@
 # MacOS metadata. 
 .DS_Store
+models/
 coderef/
 
 # Pycharm metadata.

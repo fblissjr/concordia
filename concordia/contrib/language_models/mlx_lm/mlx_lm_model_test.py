@@ -44,6 +44,9 @@ class MLXLMLanguageModelTest(unittest.TestCase):
     cls.load_patch_target = (
         'concordia.contrib.language_models.mlx_lm.mlx_lm_model.load'
     )
+    cls.generate_patch_target = (
+        'concordia.contrib.language_models.mlx_lm.mlx_lm_model.mlx_generate'
+    )
 
   def _create_mock_tokenizer(self):
     """Create a mock tokenizer for testing."""
@@ -52,7 +55,8 @@ class MLXLMLanguageModelTest(unittest.TestCase):
       """Mock tokenizer for testing."""
 
       def __init__(self):
-        self.eos_token_ids = {2}  # Mock EOS token ID
+        self.eos_token_id = 2  # Mock EOS token ID (singular)
+        self.eos_token_ids = {2}  # Mock EOS token IDs (plural)
 
       def encode(self, text: str) -> list[int]:
         # Simple mock: return list of character ordinals
@@ -147,45 +151,55 @@ class MLXLMLanguageModelTest(unittest.TestCase):
     mock_model = self._create_mock_model()
     mock_tokenizer = self._create_mock_tokenizer()
 
-    with self.mock.patch(self.load_patch_target) as mock_load:
+    with self.mock.patch(self.load_patch_target) as mock_load, \
+         self.mock.patch(self.generate_patch_target) as mock_generate:
       mock_load.return_value = (mock_model, mock_tokenizer)
+      mock_generate.return_value = 'Generated text'
 
       model = self.mlx_lm_model.MLXLMLanguageModel(model_name='test-model')
 
       result = model.sample_text('Hello', max_tokens=5)
 
       self.assertIsInstance(result, str)
+      self.assertEqual(result, 'Generated text')
 
   def test_sample_text_respects_max_tokens(self):
     """Test that sample_text respects the max_tokens limit."""
     mock_model = self._create_mock_model()
     mock_tokenizer = self._create_mock_tokenizer()
 
-    with self.mock.patch(self.load_patch_target) as mock_load:
+    with self.mock.patch(self.load_patch_target) as mock_load, \
+         self.mock.patch(self.generate_patch_target) as mock_generate:
       mock_load.return_value = (mock_model, mock_tokenizer)
+      mock_generate.return_value = 'ABC'  # Short response
 
       model = self.mlx_lm_model.MLXLMLanguageModel(model_name='test-model')
 
       # Generate with small max_tokens
       result = model.sample_text('Hello', max_tokens=3)
 
-      # Result should be limited (mock generates 'A' tokens)
-      self.assertLessEqual(len(result), 10)  # Generous upper bound
+      # Verify max_tokens was passed to generate
+      mock_generate.assert_called_once()
+      call_kwargs = mock_generate.call_args[1]
+      self.assertEqual(call_kwargs['max_tokens'], 3)
 
   def test_sample_text_handles_terminators(self):
     """Test that sample_text handles terminators correctly."""
     mock_model = self._create_mock_model()
     mock_tokenizer = self._create_mock_tokenizer()
 
-    with self.mock.patch(self.load_patch_target) as mock_load:
+    with self.mock.patch(self.load_patch_target) as mock_load, \
+         self.mock.patch(self.generate_patch_target) as mock_generate:
       mock_load.return_value = (mock_model, mock_tokenizer)
+      # Return text with terminator that should be truncated
+      mock_generate.return_value = 'Hello worldAAgoodbye'
 
       model = self.mlx_lm_model.MLXLMLanguageModel(model_name='test-model')
 
-      # The mock generates 'A' tokens, so we test with a terminator
       result = model.sample_text('Hello', max_tokens=10, terminators=['AA'])
 
-      # If 'AA' was generated, it should be truncated
+      # Text after 'AA' should be truncated
+      self.assertEqual(result, 'Hello world')
       self.assertNotIn('AA', result)
 
   def test_sample_choice_returns_valid_tuple(self):
@@ -267,12 +281,14 @@ class MLXLMLanguageModelTest(unittest.TestCase):
     mock_model = self._create_mock_model()
     mock_tokenizer = self._create_mock_tokenizer()
 
-    with self.mock.patch(self.load_patch_target) as mock_load:
+    with self.mock.patch(self.load_patch_target) as mock_load, \
+         self.mock.patch(self.generate_patch_target) as mock_generate:
       mock_load.return_value = (mock_model, mock_tokenizer)
+      mock_generate.return_value = 'Response'
 
       model = self.mlx_lm_model.MLXLMLanguageModel(model_name='test-model')
 
-      # Should not raise with temperature=0
+      # Should not raise with temperature=0 (gets converted to 0.1 internally)
       result = model.sample_text('Hello', max_tokens=3, temperature=0.0)
       self.assertIsInstance(result, str)
 

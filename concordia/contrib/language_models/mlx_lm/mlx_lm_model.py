@@ -18,8 +18,14 @@ MLX-LM is a fast inference library for large language models using Apple's MLX
 framework, optimized for Apple Silicon (M1/M2/M3/M4 chips).
 
 Example usage:
+  # Using a HuggingFace model (will be downloaded automatically)
   model = mlx_lm_model.MLXLMLanguageModel(
       model_name="mlx-community/Llama-3.2-3B-Instruct-4bit",
+  )
+
+  # Using a local model directory
+  model = mlx_lm_model.MLXLMLanguageModel(
+      model_name="./models/my-local-model",
   )
 
   # With LoRA adapter
@@ -30,11 +36,13 @@ Example usage:
 """
 
 from collections.abc import Collection, Mapping, Sequence
+from pathlib import Path
 from typing import Any, override
 
 from concordia.language_model import language_model
 from concordia.utils.deprecated import measurements as measurements_lib
 import mlx.core as mx
+from mlx_lm import generate as mlx_generate
 from mlx_lm import load
 from mlx_lm.sample_utils import make_sampler
 
@@ -43,6 +51,41 @@ _DEFAULT_SYSTEM_MESSAGE = (
     'You always continue sentences provided by the user and you never repeat '
     'what the user already said.'
 )
+
+
+def _resolve_model_path(model_name: str) -> str:
+  """Resolve model name to an absolute path if it's a local directory.
+
+  MLX-LM's load function checks if a path exists locally before attempting
+  to download from HuggingFace. However, relative paths with multiple slashes
+  (e.g., "models/org/model-name") can trigger HuggingFace's repo ID validation
+  before the existence check. This function resolves such paths to absolute
+  paths to avoid this issue.
+
+  Args:
+    model_name: Either a HuggingFace repo ID (e.g., "mlx-community/model")
+      or a local path (e.g., "./models/my-model" or "models/my-model").
+
+  Returns:
+    If the path exists locally, returns the resolved absolute path.
+    Otherwise, returns the original model_name unchanged (for HuggingFace).
+  """
+  path = Path(model_name)
+
+  # Check if it looks like a local path and exists
+  if path.exists():
+    # Return absolute path to avoid HuggingFace validation issues
+    return str(path.resolve())
+
+  # Check common indicators of local paths that might not exist yet
+  # (useful for providing better error messages)
+  if model_name.startswith(('./', '../', '/')):
+    # Explicitly looks like a path, resolve it even if it doesn't exist
+    # (mlx_lm will give a clearer error about missing files)
+    return str(path.resolve())
+
+  # Looks like a HuggingFace repo ID, return as-is
+  return model_name
 
 
 class MLXLMLanguageModel(language_model.LanguageModel):
@@ -64,7 +107,7 @@ class MLXLMLanguageModel(language_model.LanguageModel):
     Args:
       model_name: The name or path of the model to load. Can be a HuggingFace
         repo ID (e.g., "mlx-community/Llama-3.2-3B-Instruct-4bit") or a local
-        path to model weights.
+        path to model weights (e.g., "./models/my-model" or an absolute path).
       adapter_path: Optional path to LoRA adapter weights.
       tokenizer_config: Optional configuration for the tokenizer.
       model_config: Optional configuration for the model.
@@ -79,9 +122,12 @@ class MLXLMLanguageModel(language_model.LanguageModel):
     self._measurements = measurements
     self._channel = channel
 
+    # Resolve local paths to absolute paths to avoid HuggingFace validation
+    resolved_model_name = _resolve_model_path(model_name)
+
     # Load model and tokenizer via mlx_lm
     self._model, self._tokenizer = load(
-        model_name,
+        resolved_model_name,
         tokenizer_config=tokenizer_config,
         model_config=model_config,
         adapter_path=adapter_path,
@@ -123,10 +169,6 @@ class MLXLMLanguageModel(language_model.LanguageModel):
     # Format prompt
     formatted_prompt = self._format_prompt(prompt)
 
-    # Tokenize
-    tokens = self._tokenizer.encode(formatted_prompt)
-    prompt_tokens = mx.array(tokens)
-
     # Create sampler with appropriate parameters
     sampler = make_sampler(
         temp=temperature,
@@ -134,31 +176,16 @@ class MLXLMLanguageModel(language_model.LanguageModel):
         top_k=top_k if top_k > 0 else 0,
     )
 
-    # Generate tokens
-    generated_tokens = []
+    # Use mlx_lm's generate function which handles caching properly
+    result = mlx_generate(
+        model=self._model,
+        tokenizer=self._tokenizer,
+        prompt=formatted_prompt,
+        max_tokens=max_tokens,
+        sampler=sampler,
+        verbose=False,
+    )
 
-    # Process prompt
-    logits = self._model(prompt_tokens[None])
-    logprobs = logits[:, -1, :] - mx.logsumexp(logits[:, -1, :], keepdims=True)
-    y = sampler(logprobs)
-    # mx.eval materializes the lazy computation (not Python eval)
-    mx.eval(y)
-    generated_tokens.append(y.item())
-
-    # Generate remaining tokens
-    for _ in range(max_tokens - 1):
-      logits = self._model(y[None, None])
-      logprobs = logits[:, -1, :] - mx.logsumexp(logits[:, -1, :], keepdims=True)
-      y = sampler(logprobs)
-      mx.eval(y)
-
-      token = y.item()
-      if token in self._tokenizer.eos_token_ids:
-        break
-      generated_tokens.append(token)
-
-    # Decode generated tokens
-    result = self._tokenizer.decode(generated_tokens)
     return result
 
   @override
