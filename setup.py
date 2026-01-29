@@ -101,6 +101,11 @@ setuptools.setup(
             'torch',
             'transformers',
         ],
+        'mlx_lm': [
+            # Used in concordia.contrib.language_models.mlx_lm
+            'mlx',
+            'mlx-lm',
+        ],
         'openai': [
             # Used in concordia.contrib.language_models.openai
             'openai>=1.3.0',

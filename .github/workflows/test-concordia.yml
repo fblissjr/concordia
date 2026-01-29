@@ -11,7 +11,6 @@ on:
       - 'bin/install.sh'
       - 'concordia/**'
       - 'pyproject.toml'
-      - 'requirements.txt'
       - 'setup.py'
   pull_request:
     branches:
@@ -24,7 +23,6 @@ on:
       - 'bin/install.sh'
       - 'concordia/**'
       - 'pyproject.toml'
-      - 'requirements.txt'
       - 'setup.py'
   workflow_dispatch:
 

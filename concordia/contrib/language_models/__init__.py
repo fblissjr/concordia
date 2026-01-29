@@ -27,6 +27,7 @@ _REGISTRY = types.MappingProxyType({
     ),
     'google_cloud_custom_model': 'google.google_cloud_custom_model.VertexAI',
     'huggingface': 'huggingface.huggingface_model.HuggingFaceLanguageModel',
+    'mlx_lm': 'mlx_lm.mlx_lm_model.MLXLMLanguageModel',
     'openai': 'openai.gpt_model.GptLanguageModel',
     'pytorch_gemma': (
         'huggingface.pytorch_gemma_model.PyTorchGemmaLanguageModel'

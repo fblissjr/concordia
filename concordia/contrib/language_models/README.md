@@ -66,8 +66,6 @@ steps:
 
 1.  **Prepare a pull request** with your changes.
 
-    *   If you have added any new dependencies rebuild `requirements.txt` using
-        `pip-compile setup.py examples/requirements.in`.
     *   Check that the tests pass using `./bin/test.sh`
     *   Submit your PR and we will review and merge it as soon as possible.
 

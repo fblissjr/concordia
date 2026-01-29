@@ -1,5 +1,6 @@
 # MacOS metadata. 
 .DS_Store
+coderef/
 
 # Pycharm metadata.
 .idea

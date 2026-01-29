@@ -13,7 +13,6 @@ on:
       - 'concordia/**'
       - 'examples/**'
       - 'pyproject.toml'
-      - 'requirements.txt'
       - 'setup.py'
   pull_request:
     branches:
@@ -28,7 +27,6 @@ on:
       - 'concordia/**'
       - 'examples/**'
       - 'pyproject.toml'
-      - 'requirements.txt'
       - 'setup.py'
   workflow_dispatch:
 

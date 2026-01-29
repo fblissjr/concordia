@@ -6,12 +6,6 @@ build-backend = "setuptools.build_meta"
 profile = "google"
 known_thirdparty = ["concordia"]
 
-[tool.pip-tools]
-allow_unsafe = true
-generate_hashes = true
-reuse_hashes = true
-strip_extras = true
-
 [tool.pyink]
 line-length = 80
 unstable = true

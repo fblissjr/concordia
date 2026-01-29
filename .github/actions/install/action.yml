@@ -21,6 +21,12 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    - name: Install uv
+      shell: bash
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
     - name: Get cache key
       id: cache-key
       shell: bash
@@ -34,7 +40,7 @@ runs:
         else
           exit 1
         fi
-        echo "key=${name}-${version}-py${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}" >> $GITHUB_OUTPUT
+        echo "key=${name}-${version}-py${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('setup.py', 'pyproject.toml') }}" >> $GITHUB_OUTPUT
 
     - name: Restore installation
       id: restore
@@ -47,7 +53,7 @@ runs:
       if: steps.restore.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        python -m venv venv
+        uv venv venv
 
     - name: Activate venv
       shell: bash
@@ -74,15 +80,15 @@ runs:
       run: |
         which python
         python --version
-        which pip
-        pip --version
+        which uv
+        uv --version
         which pylint
         pylint --version
         which pytest
         pytest --version
         which pytype
         pytype --version
-        pip list
+        uv pip list
 
     - name: Save installation
       if: steps.restore.outputs.cache-hit != 'true'
